@@ -35,6 +35,60 @@ class _LoginScreenState extends State<LoginScreen> {
   //3.2 variable para la mirada al dejar de escribir
   Timer? _typingDebounce;
 
+//4.1 controllers para manipular texto
+  final emailCtrl = TextEditingController();
+  final passwordCtrl = TextEditingController();
+
+  //4.2 errores para mostrar en UI
+  String? emailError;
+  String? passwordError;
+  
+  //4.3 validadores
+  bool isValidEmail(String email) {
+    final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    return re.hasMatch(email);
+  }
+  bool isValidPassword(String pass) {
+    // mínimo 8, una mayúscula, una minúscula, un dígito y un especial
+    final re = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$',
+    );
+    return re.hasMatch(pass);
+  }
+
+  //4.4 accion del boton
+  void _onLogin(){
+    //de lo que escribio el usuario, quita espacos
+    final email = emailCtrl.text.trim();
+    final password = passwordCtrl.text.trim();
+
+    //recalcular posibles errores
+    final emailUIError = isValidEmail(email) ? null : 'Email inválido';
+    final passwordUIError = isValidPassword(password) ? null : 'Contraseña inválida';
+  
+  //4.5 notifiquen cambios en la UI
+  setState(() {
+    emailError = emailUIError;
+    passwordError = passwordUIError;
+  });
+
+  //4.6 CERRAR EL TECLADO Y BAJAR MANOS
+  FocusScope.of(context).unfocus();
+  _typingDebounce?.cancel();
+  _isChecking?.change(false);
+  _isHandsUp?.change(false);
+  _numLook?.value = 50.0;
+
+  //4.7 disparar animación de éxito o error (activar trigers)
+  if (emailUIError == null && passwordUIError == null) {
+    _trigSuccess?.fire();
+  } else {
+    _trigFail?.fire();
+  }
+}
+
+
+
 //1.2 Agregar oyentes/chismosos 
   @override
   void initState() {
@@ -104,10 +158,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-
+              
               //1.3 Avincular focus al campo de texto
               //email
               TextField(
+                //4.8 Enlazr emailctrl
+              controller: emailCtrl,
                 focusNode: _emailFocusNode,
                 onChanged: (value) {              
                   if (_isHandsUp != null) {
@@ -131,8 +187,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     _isChecking?.change(false);
                   });
                 },
+                //mostrar teclado de email
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
+                  errorText: emailError,
                   prefixIcon: const Icon(Icons.email),
                   hintText: 'Email',
                   border: OutlineInputBorder(
@@ -145,6 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               TextField(
                 focusNode: _passwordFocusNode,
+                controller: passwordCtrl,
                 onChanged: (value) {
                   if (_isChecking != null) {
                     //_isChecking!.change(false);
@@ -154,6 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
                 obscureText: _obscureText,
                 decoration: InputDecoration(
+                  errorText: passwordError,
                   hintText: 'Contraseña',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -171,8 +231,45 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10)
-            ],
+              SizedBox(height: 10),
+              //texto olvide contraseña
+              SizedBox(
+                width: size.width,
+                child: const Text(
+                  'Olvidé mi contraseña',
+                  //alinear a la derecha
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    decoration: TextDecoration.underline), 
+                ),
+              ),
+              SizedBox(height: 10),
+              //boton de login
+              MaterialButton(
+              minWidth: size.width,
+              color: const Color.fromARGB(255, 246, 51, 191),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onPressed: _onLogin,
+              child: const Text('Login', style: TextStyle(color: Colors.white)),
+              )
+              //no tienes cuenta
+              ,SizedBox(
+                child: Row(
+                  children: [
+                    const Text('¿No tienes cuenta?'),
+                    TextButton(
+                      onPressed: () {},
+                       child: const Text('Regístrate', style: TextStyle(
+                        color: Colors.black,
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.bold
+                       ),),
+                    ),
+                  ],),
+              ),
+          ],
           ),
         ),
       ),
@@ -181,6 +278,9 @@ class _LoginScreenState extends State<LoginScreen> {
   //1.4 liberar recursos al salir de la pantalla
   @override
   void dispose() {
+    //4.11
+    emailCtrl.dispose();
+    passwordCtrl.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     super.dispose();
